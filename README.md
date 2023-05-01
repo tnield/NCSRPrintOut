@@ -12,6 +12,9 @@ Built using Python with the following libraries.
 ## Setup
 Import the previously listed libraries and just run main(). 
 
+## Output
+Once you run main() the code will return a part1.csv, part2.csv and the Printout.pdf.
+
 ## Example.xlsx
 This file is an empty file. In its xlsx format it is easier to file out. Once it is filled out change the format to csv.
 
