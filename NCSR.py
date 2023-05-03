@@ -13,7 +13,7 @@ def split():
 
     part1 = []
     part2 = []
-    with open("ExampleData.csv", 'r') as record:
+    with open("DU.csv", 'r') as record:
         csvreader_object = csv.reader(record)
         next(csvreader_object)
         for row in csvreader_object:
@@ -32,27 +32,40 @@ def split():
 def dataCleaning(file):
 # file = is part1.csv or part2.csv that is made when spilt() is ran
 # If part1.csv = Cleans the data and makes 3 columns, Section, Question, Maturity_Level
-# If part2.csv = TODO
-
-# Returns a dataframe of the cleaned data i.e. removed empty rows
-
+# If part2.csv = Cleans the data and makes 2 columns, Question and Answer
     data = []
-    with open(file, "r") as record:
-        csvreader_object = csv.reader(record)
-        next(csvreader_object)
-        for row in csvreader_object:
-            if len(row[0]) < 1:
-                continue
-            parts = row[0].split('-', 3)
-            qid = '-'.join(parts[:3])
-            name = parts[3]
-            number = int(row[1].strip())
-            dataDict = dict(Section=qid,Question=name,Maturity_Level=number)
-            data.append(dataDict)
-        pd.options.display.max_colwidth = 1000
-        df = pd.DataFrame(data)
-    return df
-
+    QA=[]
+    if file == 'part2.csv':
+        with open(file, "r") as record:
+            csvreader_object = csv.reader(record)
+            next(csvreader_object)
+            for row in csvreader_object:
+                if len(row[0]) < 1:
+                    continue
+                key1 = row[0]
+                key2 = row[1]
+                dataDict = dict(Question=key1,Answer=key2)
+                QA.append(dataDict)
+#             pd.options.display.max_colwidth = 1000
+            df = QA
+    else:
+# Returns a dataframe of the cleaned data i.e. removed empty rows
+        with open(file, "r") as record:
+            csvreader_object = csv.reader(record)
+            next(csvreader_object)
+            for row in csvreader_object:
+                if len(row[0]) < 1:
+                    continue
+                parts = row[0].split('-', 3)
+                qid = '-'.join(parts[:3])
+                name = parts[3]
+                number = int(row[1].strip())
+                dataDict = dict(Section=qid,Question=name,Maturity_Level=number)
+                data.append(dataDict)
+            pd.options.display.max_colwidth = 1000
+            df = pd.DataFrame(data)
+    return df    
+    
 def average(NIST, data, section):
 # NIST = NISTdict: dictionary of dictionaries that has the ID's and names of each section and sub section in the NSCR question set
 # data = the entire NSCR question set that has been cleaned
@@ -175,6 +188,7 @@ def secDoubleBar(NIST,data,avgMO,title,institution):
         go.Bar(name='Missouri Averages',x=Sections, y=avgMO, marker=dict(color='blue'))
     ],
     layout=go.Layout(
+            title=go.layout.Title(text=f"{institution} compared to Missouri Averages"),
             yaxis = dict(
             range = [0,7]),
             showlegend=True)
@@ -213,6 +227,7 @@ def subDoubleBar(NIST,data,subAvg,title,institution):
         go.Bar(name='Missouri Averages',x=sub, y=scoresMO, marker=dict(color='blue'))
     ],
     layout=go.Layout(
+            title=go.layout.Title(text=f"{institution} compared to Missouri Averages"),
             yaxis = dict(    
             range = [0,7]),
             showlegend=True)
@@ -223,7 +238,56 @@ def subDoubleBar(NIST,data,subAvg,title,institution):
     base = os.path.splitext(my_file)[0]
     os.rename(my_file, base + '.png')
     
-def pdf(institution):
+def part2(section):
+#### TODO ####
+    data = dataCleaning('part2.csv')
+    
+    top5 = data[1:7]
+    string = ""
+    budget = data[11:14]
+    auto = data[14:31]
+    autoQ = []
+    autoA = []
+    
+    if section == "top5":
+        for index in range(len(top5)):
+            string = str(string + " " + top5[index].get("Question")+ " - " + top5[index].get("Answer"))
+    if section == "budget":
+#         print(budget[0].get("Question"))
+        for index in range(len(budget)):
+#             print(budget[index].get("Answer"))
+            string = str(string + "   " + budget[index].get("Question")+ " - " + budget[index].get("Answer"))
+    if section == "auto":
+#         print(auto[0].get("Question"))
+        for index in range(len(auto)):
+            autoQ.append(auto[index].get("Question"))
+            autoA.append(auto[index].get("Answer"))
+            string = str(string + "   " + auto[index].get("Question")+ " - " + auto[index].get("Answer"))
+#     print(string)
+    return(string)
+
+def grade(NIST, data, section):
+# NIST = the dict of NIST information
+# data = the part of the data needing to be graphed
+# section = the section that needs grading
+
+# Returns grades for the sub sections of the section passed as a parameter
+    
+    grades = []
+    scores = []
+    for title, grade in subAverage(NIST,data,section).items():
+        if grade < 3:
+            grades.append(title)  
+            scores.append("red")
+        elif grade < 5:
+            grades.append(title)  
+            scores.append("yellow")
+        elif grade < 7:
+            grades.append(title)  
+            scores.append("green")
+    return(grades,scores)
+            
+def pdf(institution, NIST, data):
 # Creates the main handout as a pdf
 
     section = f"The graph above is the average of the all the sections within the NIST question set. The sections are scored 1 through 7. The numbers represent a maturity level in that particular section. 1 - Not Performed, 2 - Informally Performed, 3 - Documented, 4 - Partially Documented Strandards and/or Procedures, 5- Risk Formally Accepted/Implementation in Process, 6 - Tested and Vertifed, 7- Optimized. Throughout the rest of this readout will be a averages of each of the individual parts of the question set. Below is a graph with averages of the state of Missouri in the same sections compared to {institution}."
@@ -232,6 +296,16 @@ def pdf(institution):
     detect=f"The quicker an organization can detect a cybersecurity incident, the better positioned it is to be able to remediate the problem and reduce the consequences of the event. Activities found within the Detect function pertain to an organizations ability to identify incidents. These controls are becoming more important, as growing numbers of logs and events within an environment can be overwhelming to handle and make it difficult to identify key concerns."
     respond=f"An organizations ability to quickly and appropriately respond to an incident plays a large role in reducing the incidents consequences. As such, the activities within the Respond function examine how an organization plans, analyzes, communicates, mitigates, and improves its response capabilities. For many organizations, integration and cooperation with other entities is key. Many organizations do not have the internal resources to handle all components of incident response. One example is the ability to conduct forensics after an incident, which helps organizations to identify and remediate the original attack vector. This gap can be addressed through resource-sharing within the SLTT community and leveraging organizations such as MS-ISAC and CISA, which have dedicated resources to provide incident response at no cost to the victim."
     recover=f"Activities within the Recover function pertain to an organizations ability to return to its baseline after an incident has occurred. Such controls are focused not only on activities to recover from the incident, but also on many of the components dedicated to managing response plans throughout their lifecycle."
+    desc = "This part of the handout is a visual representation of each part of the NCSR review. Depending on the average from the section they are each score, RED - needs work, YELLOW - good, but could be better, GREEN - Optimal."
+    top5 = part2("top5")
+    budget = part2("budget")
+    gradeID = grade(NIST,data,"identify")
+    gradePR = grade(NIST,data,"protect")
+    gradeDE = grade(NIST,data,"detect")
+    gradeRS = grade(NIST,data,"respond")
+    gradeRE = grade(NIST,data,"recover")
+    
+    auto = part2("auto")
     pdf = FPDF('P', 'mm', 'A4')
     pdf.add_page()
     pdf.set_left_margin(5)
@@ -250,25 +324,28 @@ def pdf(institution):
     pdf.set_font('Arial', '', 20)
     pdf.add_page()
 ##### TABLE OF CONTENT #####
-    pdf.ln(20)
+    pdf.add_page()
     pdf.set_font('Arial', '', 40)
-    pdf.cell(50)
+    pdf.cell(44)
     pdf.multi_cell(0, 40, "Table of Contents", 0, 0,'C')
     pdf.set_font('Arial', '', 20)
+    pdf.cell(55)
+    pdf.multi_cell(0, 20, "5 NIST Sections Overview"+ "  "+"pg.2", 0, 0,'C')
+    pdf.cell(25)
+    pdf.multi_cell(0, 20, "Identify Sub Sections Averages & Grading"+ "  "+"pg.3", 0, 0,'C')
+    pdf.cell(25)
+    pdf.multi_cell(0, 20, "Protect Sub Sections Averages & Grading"+ "  "+"pg.5", 0, 0,'C')
+    pdf.cell(25)
+    pdf.multi_cell(0, 20, "Detect Sub Sections Averages & Grading"+ "  "+"pg.7", 0, 0,'C')
+    pdf.cell(25)
+    pdf.multi_cell(0, 20, "Respond Sub Sections Averages & Grading"+ "  "+"pg.9", 0, 0,'C')
+    pdf.cell(25)
+    pdf.multi_cell(0, 20, "Recover Sub Sections Averages & Grading"+ "  "+"pg.11", 0, 0,'C')
     pdf.cell(65)
-    pdf.multi_cell(0, 20, "5 NIST Sections Overview", 0, 0,'C')
-    pdf.cell(58)
-    pdf.multi_cell(0, 30, "Identify Sub Sections Averages", 0, 0,'C')
-    pdf.cell(58)
-    pdf.multi_cell(0, 30, "Protect Sub Sections Averages", 0, 0,'C')
-    pdf.cell(58)
-    pdf.multi_cell(0, 30, "Detect Sub Sections Averages", 0, 0,'C')
-    pdf.cell(58)
-    pdf.multi_cell(0, 30, "Respond Sub Sections Averages", 0, 0,'C')
-    pdf.cell(58)
-    pdf.multi_cell(0, 30, "Recover Sub Sections Averages", 0, 0,'C')
-    pdf.cell(78)
-    pdf.multi_cell(0, 30, "Part 2 Overview", 0, 0,'C')
+    pdf.multi_cell(0, 20, "Part 2 Overview"+ "  "+"pg.13", 0, 0,'C')
+    pdf.set_y(0)
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(0,10,'1',0,0,'R')
 ##### PAGE 1 #####
     pdf.add_page()
     pdf.image('Section Average.png', gx, gy, gw, gh)
@@ -281,6 +358,9 @@ def pdf(institution):
     pdf.multi_cell(0, 10, section, 0, 0,'L')
     pdf.cell(5)
     pdf.image('Section Double Bar.png', 40, 195, 145, 0)
+    pdf.set_y(0)
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(0,10,'2',0,0,'R')
 ##### PAGE 2 #####  
     pdf.add_page()
     pdf.image('Identify Sub Sections Averages.png', gx, gy, gw, gh)
@@ -293,7 +373,42 @@ def pdf(institution):
     pdf.multi_cell(0, 10, idenfity, 0, 0,'L')
     pdf.cell(5)
     pdf.image('Identify Sub Average Double Bar.png', 40, 195, 145, 0)
-##### PAGE 3 #####    
+    pdf.set_y(0)
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(0,10,'3',0,0,'R')
+##### PAGE 3 #####  
+    pdf.add_page()
+    pdf.set_font('Arial', '', 17)
+    pdf.cell(10)
+    pdf.multi_cell(0, 10, 'Identify Grading', 0, 0,'C')
+    pdf.line(x1 = 5, y1 = 20, x2 = 205, y2 = 20)
+    pdf.ln(5)
+    pdf.set_font('Arial', '', 9.5)
+    pdf.cell(5)
+    pdf.multi_cell(0, 10, desc , 0, 0,'L')
+    pdf.ln(5)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeID[0][0], 1, 1,'L')
+    pdf.image(f"{gradeID[1][0]}.png",120, 52, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeID[0][1], 1,1,'L')
+    pdf.image(f"{gradeID[1][1]}.png",120, 78, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeID[0][2], 1, 1,'L')
+    pdf.image(f"{gradeID[1][2]}.png",120, 102, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeID[0][3], 1,1,'L')
+    pdf.image(f"{gradeID[1][3]}.png",120, 127, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeID[0][4], 1, 1,'L')
+    pdf.image(f"{gradeID[1][4]}.png",120, 152, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeID[0][5], 1, 1,'L')
+    pdf.image(f"{gradeID[1][5]}.png",120, 178, 8, 0)
+    pdf.set_y(0)
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(0,10,'4',0,0,'R')
+##### PAGE 4 #####    
     pdf.add_page()
     pdf.image('Protect Sub Sections Averages.png', gx, gy, gw, gh)
     pdf.line(x1 = 5, y1 = 25, x2 = 205, y2 = 25)
@@ -305,6 +420,38 @@ def pdf(institution):
     pdf.multi_cell(0, 10, protect, 0, 0,'L')
     pdf.cell(5)
     pdf.image('Protect Sub Average Double Bar.png', 40, 195, 145, 0)
+    pdf.set_y(0)
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(0,10,'5',0,0,'R')
+##### PAGE 5 #####  
+    pdf.add_page()
+    pdf.set_font('Arial', '', 17)
+    pdf.cell(10)
+    pdf.multi_cell(0, 10, 'Protect Grading', 0, 0,'C')
+    pdf.line(x1 = 5, y1 = 20, x2 = 205, y2 = 20)
+    pdf.ln(10)
+    pdf.set_font('Arial', '', 9.5)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradePR[0][0], 1, 1,'L')
+    pdf.image(f"{gradePR[1][0]}.png",120, 32, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradePR[0][1], 1,1,'L')
+    pdf.image(f"{gradePR[1][1]}.png",120, 58, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradePR[0][2], 1, 1,'L')
+    pdf.image(f"{gradePR[1][2]}.png",120, 83, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradePR[0][3], 1,1,'L')
+    pdf.image(f"{gradePR[1][3]}.png",120, 108, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradePR[0][4], 1, 1,'L')
+    pdf.image(f"{gradePR[1][4]}.png",120, 133, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradePR[0][5], 1, 1,'L')
+    pdf.image(f"{gradePR[1][5]}.png",120, 157, 8, 0)
+    pdf.set_y(0)
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(0,10,'6',0,0,'R')
 ##### PAGE 4 #####    
     pdf.add_page()
     pdf.image('Detect Sub Sections Averages.png', gx, gy, gw, gh)
@@ -317,7 +464,30 @@ def pdf(institution):
     pdf.multi_cell(0, 10, detect, 0, 0,'L')
     pdf.cell(5)
     pdf.image('Detect Sub Average Double Bar.png', 40, 195, 145, 0)
-##### PAGE 5 #####
+    pdf.set_y(0)
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(0,10,'7',0,0,'R')
+##### PAGE 5 #####  
+    pdf.add_page()
+    pdf.set_font('Arial', '', 17)
+    pdf.cell(10)
+    pdf.multi_cell(0, 10, 'Detect Grading', 0, 0,'C')
+    pdf.line(x1 = 5, y1 = 20, x2 = 205, y2 = 20)
+    pdf.ln(10)
+    pdf.set_font('Arial', '', 9.5)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeDE[0][0], 1, 1,'L')
+    pdf.image(f"{gradeDE[1][0]}.png",120, 32, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeDE[0][1], 1,1,'L')
+    pdf.image(f"{gradeDE[1][1]}.png",120, 58, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeDE[0][2], 1, 1,'L')
+    pdf.image(f"{gradeDE[1][2]}.png",120, 83, 8, 0)
+    pdf.set_y(0)
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(0,10,'8',0,0,'R')
+##### PAGE 6 #####
     pdf.add_page()
     pdf.image('Respond Sub Sections Averages.png', gx, gy, gw, gh)
     pdf.line(x1 = 5, y1 = 25, x2 = 205, y2 = 25)
@@ -329,7 +499,36 @@ def pdf(institution):
     pdf.multi_cell(0, 10, respond, 0, 0,'L')
     pdf.cell(5)
     pdf.image('Respond Sub Average Double Bar.png', 40, 195, 145, 0)
-##### PAGE 6 #####    
+    pdf.set_y(0)
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(0,10,'9',0,0,'R')
+##### PAGE 7 #####  
+    pdf.add_page()
+    pdf.set_font('Arial', '', 17)
+    pdf.cell(10)
+    pdf.multi_cell(0, 10, 'Respond Grading', 0, 0,'C')
+    pdf.line(x1 = 5, y1 = 20, x2 = 205, y2 = 20)
+    pdf.ln(10)
+    pdf.set_font('Arial', '', 9.5)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeRS[0][0], 1, 1,'L')
+    pdf.image(f"{gradeRS[1][0]}.png",120, 32, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeRS[0][1], 1,1,'L')
+    pdf.image(f"{gradeRS[1][1]}.png",120, 58, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeRS[0][2], 1, 1,'L')
+    pdf.image(f"{gradeRS[1][2]}.png",120, 83, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeRS[0][3], 1,1,'L')
+    pdf.image(f"{gradeRS[1][3]}.png",120, 108, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeRS[0][4], 1, 1,'L')
+    pdf.image(f"{gradeRS[1][4]}.png",120, 133, 8, 0)
+    pdf.set_y(0)
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(0,10,'10',0,0,'R')
+##### PAGE 8 #####    
     pdf.add_page()
     pdf.image('Recover Sub Sections Averages.png', gx, gy, gw, gh)
     pdf.line(x1 = 5, y1 = 25, x2 = 205, y2 = 25)
@@ -341,6 +540,41 @@ def pdf(institution):
     pdf.multi_cell(0, 10, recover, 0, 0,'L')
     pdf.cell(5)
     pdf.image('Recover Sub Average Double Bar.png', 40, 195, 145, 0)
+    pdf.set_y(0)
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(0,10,'11',0,0,'R')
+##### PAGE 9 #####  
+    pdf.add_page()
+    pdf.set_font('Arial', '', 17)
+    pdf.cell(10)
+    pdf.multi_cell(0, 10, 'Recover Grading', 0, 0,'C')
+    pdf.line(x1 = 5, y1 = 20, x2 = 205, y2 = 20)
+    pdf.ln(10)
+    pdf.set_font('Arial', '', 9.5)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeRE[0][0], 1, 1,'L')
+    pdf.image(f"{gradeRE[1][0]}.png",120, 32, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeRE[0][1], 1,1,'L')
+    pdf.image(f"{gradeRE[1][1]}.png",120, 58, 8, 0)
+    pdf.cell(10)
+    pdf.multi_cell(0, 25, gradeRE[0][2], 1, 1,'L')
+    pdf.image(f"{gradeRE[1][2]}.png",120, 83, 8, 0)
+    pdf.set_y(0)
+    pdf.set_font('Arial', '', 8)
+    pdf.cell(0,10,'12',0,0,'R')
+##### PAGE 10 #####  
+#     pdf.add_page()
+#     pdf.set_font('Arial', '', 17)
+#     pdf.cell(10)
+#     pdf.multi_cell(0, 10, 'Part 2 Overview', 0, 0,'C')
+#     pdf.line(x1 = 5, y1 = 20, x2 = 205, y2 = 20)
+#     pdf.set_font('Arial', '', 20)
+#     pdf.ln(5)
+#     pdf.cell(10)
+#     pdf.set_y(0)
+#     pdf.set_font('Arial', '', 8)
+#     pdf.cell(0,10,'13',0,0,'R')
     
     pdf.output('PrintOut.pdf', 'F')
 
@@ -359,18 +593,20 @@ def clear():
     os.remove("Detect Sub Average Double Bar.png")
     os.remove("Respond Sub Average Double Bar.png")
     os.remove("Recover Sub Average Double Bar.png")
-    
+    os.remove("part1.csv")
+    os.remove("part2.csv")
+            
 def main():
-  #### NCSR NIST section and sub section ####  
+    #### NCSR NIST section and sub section ####  
 
     NISTdict={
     "identify" : {"ID-AM":"Assest Management","ID-BE":"Business Environment","ID-GV":"Goverance","ID-RA":"Risk Assessment","ID-RM":"Risk Management Strategy","ID-SC":"Supply Chain Risk Management"},
-    "protect" : {"PR-AC":"Identity Management and Access Control","PR-AT":"Awareness and Training","PR-DS":"Data Security","PR-IP":"Information Protection Process & Procedues","PR-MA":"Maintenance","PR-PT":"Protectice Technology"},
+    "protect" : {"PR-AC":"Identity Management and Access Control","PR-AT":"Awareness and Training","PR-DS":"Data Security","PR-IP":"Information Protection Process & Procedues","PR-MA":"Maintenance","PR-PT":"Protection Technology"},
     "detect" : {"DE-AE":"Anomalies and Events","DE-CM":"Security Contunuous Monitoring","DE-DP":"Detection Processes"},
     "respond" : {"RS-RP":"Response Planning","RS-CO":"Communications","RS-AN":"Analysis","RS-MI":"Mitigation","RS-IM":"Improvement"},
     "recover" : {"RC-RP":"Recovery Planning","RC-IM":"Improvements","RC-CO":"Communications" }
     }
-    
+
     #### TEMPLET TO ADD DATA FROM PREVIOUS OR FUTURE YEARS ####
     
 #     avg=["","","","",""]
@@ -381,7 +617,7 @@ def main():
 #     rs={ "Section":"respond","RS-RP":"","RS-CO":"","RS-AN":"","RS-MI":"","RS-IM":""}
 #     rc={ "Section":"recover","RC-RP":"","RC-IM":"","RC-CO":""}
 
-  #### 2022 MISSOURI NCSR ####
+    #### 2022 MISSOURI NCSR ####
     
     avgMO=["3.48","4.10","3.82","3.64","3.55"]
     
@@ -416,7 +652,7 @@ def main():
     subDoubleBar(NISTdict,data,rsMO, "Respond Sub Average Double Bar",institution)
     subDoubleBar(NISTdict,data,rcMO, "Recover Sub Average Double Bar",institution)
     
-    pdf(institution)
+    pdf(institution, NISTdict, data)
     
     clear()
     
