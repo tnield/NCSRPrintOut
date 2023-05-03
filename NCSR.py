@@ -13,7 +13,7 @@ def split():
 
     part1 = []
     part2 = []
-    with open("DU.csv", 'r') as record:
+    with open("ExampleData.csv", 'r') as record:
         csvreader_object = csv.reader(record)
         next(csvreader_object)
         for row in csvreader_object:
